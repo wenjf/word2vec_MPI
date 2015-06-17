@@ -1,7 +1,3 @@
-//ÏÂÃæÊÇÎÒ¶Ôword2vec.cµÄ×¢ÊÍ
-//ÏêÏ¸Ëã·¨¿ÉÒÔ²Î¿¼ÂÛÎÄ£¬»òÕß¿´ÕâÆª²©¿Í http://www.cnblogs.com/downtjs/p/3784440.html
-
-
 //  Copyright 2013 Google Inc. All Rights Reserved.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,15 +30,15 @@ typedef float real;                    // Precision of float numbers
 
 struct vocab_word
 {
-  long long cn;//´ÊÆµ
-  int *point;//huffman±àÂë¶ÔÓ¦ÄÚ½ÚµãµÄÂ·¾¶
-  char *word, *code, codelen;//huffman±àÂë
+  long long cn;//è¯é¢‘
+  int *point;//huffmanç¼–ç å¯¹åº”å†…èŠ‚ç‚¹çš„è·¯å¾„
+  char *word, *code, codelen;//huffmanç¼–ç 
 };
 
 char train_file[MAX_STRING], output_file[MAX_STRING];//
 char save_vocab_file[MAX_STRING], read_vocab_file[MAX_STRING];
-struct vocab_word *vocab;//¶¨Òå´Ê±í
-int binary = 0, cbow = 0, debug_mode = 2, window = 5, min_count = 5, num_threads = 1, min_reduce = 1;//Ö÷º¯Êı²ÎÊı
+struct vocab_word *vocab;//å®šä¹‰è¯è¡¨
+int binary = 0, cbow = 0, debug_mode = 2, window = 5, min_count = 5, num_threads = 1, min_reduce = 1;//ä¸»å‡½æ•°å‚æ•°
 int *vocab_hash;
 long long vocab_max_size = 1000, vocab_size = 0, layer1_size = 100;
 long long train_words = 0, word_count_actual = 0, file_size = 0, classes = 0;
@@ -55,24 +51,24 @@ const int table_size = 1e8;
 int *table;
 
 
-//Ã¿¸öµ¥´ÊµÄÄÜÁ¿·Ö²¼±í£¬tableÔÚ¸ºÑù±¾³éÑùÖĞÓÃµ½
+//æ¯ä¸ªå•è¯çš„èƒ½é‡åˆ†å¸ƒè¡¨ï¼Œtableåœ¨è´Ÿæ ·æœ¬æŠ½æ ·ä¸­ç”¨åˆ°
 void InitUnigramTable()
 {
   int a, i;
   long long train_words_pow = 0;
   real d1, power = 0.75;
   table = (int *)malloc(table_size * sizeof(int));
-  for (a = 0; a < vocab_size; a++) //±éÀú´Ê»ã±í£¬Í³¼Æ´ÊµÄÄÜÁ¿×ÜÖµtrain_words_pow£¬Ö¸ÊıpowerÓ¦¸ÃÊÇËõĞ¡ÖµµÄ°É¡£
+  for (a = 0; a < vocab_size; a++) //éå†è¯æ±‡è¡¨ï¼Œç»Ÿè®¡è¯çš„èƒ½é‡æ€»å€¼train_words_powï¼ŒæŒ‡æ•°poweråº”è¯¥æ˜¯ç¼©å°å€¼çš„å§ã€‚
 	  train_words_pow += pow(vocab[a].cn, power);
   i = 0;
-  d1 = pow(vocab[i].cn, power) / (real)train_words_pow;//±íÊ¾ÒÑ±éÀúµÄ´ÊµÄÄÜÁ¿ÖµÕ¼×ÜÄÜÁ¦ÖµµÄ±ÈÀı
-  for (a = 0; a < table_size; a++)//±éÀútable¡£a±íÊ¾tableµÄÎ»ÖÃ£¬i±íÊ¾´Ê»ã±íµÄÎ»ÖÃ
+  d1 = pow(vocab[i].cn, power) / (real)train_words_pow;//è¡¨ç¤ºå·²éå†çš„è¯çš„èƒ½é‡å€¼å æ€»èƒ½åŠ›å€¼çš„æ¯”ä¾‹
+  for (a = 0; a < table_size; a++)//éå†tableã€‚aè¡¨ç¤ºtableçš„ä½ç½®ï¼Œiè¡¨ç¤ºè¯æ±‡è¡¨çš„ä½ç½®
   {
-    table[a] = i;//µ¥´ÊiÕ¼ÓÃtableµÄaÎ»ÖÃ
-    //table·´Ó³µÄÊÇÒ»¸öµ¥´ÊÄÜÁ¿µÄ·Ö²¼£¬Ò»¸öµ¥´ÊÄÜÁ¿Ô½´ó£¬ËùÕ¼ÓÃµÄtableµÄÎ»ÖÃÔ½¶à
+    table[a] = i;//å•è¯iå ç”¨tableçš„aä½ç½®
+    //tableåæ˜ çš„æ˜¯ä¸€ä¸ªå•è¯èƒ½é‡çš„åˆ†å¸ƒï¼Œä¸€ä¸ªå•è¯èƒ½é‡è¶Šå¤§ï¼Œæ‰€å ç”¨çš„tableçš„ä½ç½®è¶Šå¤š
     if (a / (real)table_size > d1)
     {
-      i++;//ÒÆ¶¯µ½ÏÂÒ»¸ö´Ê
+      i++;//ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªè¯
       d1 += pow(vocab[i].cn, power) / (real)train_words_pow;
     }
     if (i >= vocab_siInitNetze) i = vocab_size - 1;
@@ -80,7 +76,7 @@ void InitUnigramTable()
 }
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
-//´ÓÎÄ¼şÖĞ¶ÁÈ¡Ò»¸ö´Ê
+//ä»æ–‡ä»¶ä¸­è¯»å–ä¸€ä¸ªè¯
 void ReadWord(char *word, FILE *fin) {
   int a = 0, ch;
   while (!feof(fin)) {
@@ -100,28 +96,28 @@ void ReadWord(char *word, FILE *fin) {
     a++;
     if (a >= MAX_STRING - 1) a--;   // Truncate too long words
   }
-  word[a] = 0;//CÓïÑÔÖĞchar*ÒÔ0½áÎ²
+  word[a] = 0;//Cè¯­è¨€ä¸­char*ä»¥0ç»“å°¾
 }
 
-// Returns hash value of a word·µ»ØÒ»¸ö´ÊµÄhashÖµ£¬Ò»¸ö´Ê¸úhashÖµÒ»Ò»¶ÔÓ¦£¨¿ÉÄÜ³åÍ»£©
+// Returns hash value of a wordè¿”å›ä¸€ä¸ªè¯çš„hashå€¼ï¼Œä¸€ä¸ªè¯è·Ÿhashå€¼ä¸€ä¸€å¯¹åº”ï¼ˆå¯èƒ½å†²çªï¼‰
 int GetWordHash(char *word)
 {
   unsigned long long a, hash = 0;
   for (a = 0; a < strlen(word); a++)
-	  hash = hash * 257 + word[a];//²ÉÈ¡257½øÖÆ
+	  hash = hash * 257 + word[a];//é‡‡å–257è¿›åˆ¶
   hash = hash % vocab_hash_size;
   return hash;
 }
 
 // Returns position of a word in the vocabulary; if the word is not found, returns -1
-// ·µ»ØÒ»¸ö´ÊÔÚ´Ê»ã±íÖĞµÄÎ»ÖÃ£¬Èç¹û²»´æÔÚÔò·µ»Ø-1
+// è¿”å›ä¸€ä¸ªè¯åœ¨è¯æ±‡è¡¨ä¸­çš„ä½ç½®ï¼Œå¦‚æœä¸å­˜åœ¨åˆ™è¿”å›-1
 int SearchVocab(char *word)
 {
   unsigned int hash = GetWordHash(word);
   while (1)
   {
     if (vocab_hash[hash] == -1) return -1;
-    if (!strcmp(word, vocab[vocab_hash[hash]].word))//Èç¹ûÊÇÕâ¸öword£¬·µ»ØÔÚ´Ë±íÖĞµÄÎ»ÖÃ£¬·ñÔòÊ¹ÓÃÏßĞÔ¿ª·ÅÑ°Ö··¨£¬
+    if (!strcmp(word, vocab[vocab_hash[hash]].word))//å¦‚æœæ˜¯è¿™ä¸ªwordï¼Œè¿”å›åœ¨æ­¤è¡¨ä¸­çš„ä½ç½®ï¼Œå¦åˆ™ä½¿ç”¨çº¿æ€§å¼€æ”¾å¯»å€æ³•ï¼Œ
     	return vocab_hash[hash];
     hash = (hash + 1) % vocab_hash_size;
   }
@@ -129,60 +125,60 @@ int SearchVocab(char *word)
 }
 
 // Reads a word and returns its index in the vocabulary
-// ´ÓÎÄ¼şÁ÷ÖĞ¶ÁÈ¡Ò»¸ö´Ê£¬²¢·µ»ØÕâ¸ö´ÊÔÚ´Ê»ã±íÖĞµÄÎ»ÖÃ
+// ä»æ–‡ä»¶æµä¸­è¯»å–ä¸€ä¸ªè¯ï¼Œå¹¶è¿”å›è¿™ä¸ªè¯åœ¨è¯æ±‡è¡¨ä¸­çš„ä½ç½®
 int ReadWordIndex(FILE *fin)
 {
   char word[MAX_STRING];
-  ReadWord(word, fin);//ÓëÏÂÒ»ĞĞµÄ¹ØÏµ
+  ReadWord(word, fin);//ä¸ä¸‹ä¸€è¡Œçš„å…³ç³»
   if (feof(fin)) return -1;
   return SearchVocab(word);
 }
 
-// Adds a word to the vocabulary ½«Ò»¸ö´ÊÌí¼Óµ½Ò»¸ö´Ê»ãÖĞ
+// Adds a word to the vocabulary å°†ä¸€ä¸ªè¯æ·»åŠ åˆ°ä¸€ä¸ªè¯æ±‡ä¸­
 int AddWordToVocab(char *word)
 {
   unsigned int hash, length = strlen(word) + 1;
   if (length > MAX_STRING)
-	  length = MAX_STRING;//Ê×ÏÈÔ¼ÊøÕâ¸ö´ÊµÄ³¤¶È.
-  vocab[vocab_size].word = (char *)calloc(length, sizeof(char));//·ÖÅäÄÚ´æ
-  strcpy(vocab[vocab_size].word, word);//¶ÔÉÏÒ»ĞĞ·ÖÅäµÄÄÚ´æ¸³Öµ
-  vocab[vocab_size].cn = 0;//³õÊ¼»¯Õâ¸ö´ÊµÄ´ÊÆµ
-  vocab_size++;//´Ê±íµÄ³¤¶È+1
+	  length = MAX_STRING;//é¦–å…ˆçº¦æŸè¿™ä¸ªè¯çš„é•¿åº¦.
+  vocab[vocab_size].word = (char *)calloc(length, sizeof(char));//åˆ†é…å†…å­˜
+  strcpy(vocab[vocab_size].word, word);//å¯¹ä¸Šä¸€è¡Œåˆ†é…çš„å†…å­˜èµ‹å€¼
+  vocab[vocab_size].cn = 0;//åˆå§‹åŒ–è¿™ä¸ªè¯çš„è¯é¢‘
+  vocab_size++;//è¯è¡¨çš„é•¿åº¦+1
   // Reallocate memory if needed
   if (vocab_size + 2 >= vocab_max_size)
   {
     vocab_max_size += 1000;
     vocab = (struct vocab_word *)realloc(vocab, vocab_max_size * sizeof(struct vocab_word));
-  }//¹ÜÀí´Ê±íµÄÄÚ´æ
-  hash = GetWordHash(word);//ÇóÕâ¸ö´ÊµÄhashÖµ
-  while (vocab_hash[hash] != -1)//Èç¹ûhashÖµ³åÍ»ÁË
-	  hash = (hash + 1) % vocab_hash_size;//Ê¹ÓÃ¿ª·ÅµØÖ··¨½â¾ö³åÍ»
-  vocab_hash[hash] = vocab_size - 1;//ÓÉ´ÊµÄhashÖµÕÒµ½ËıËùÔÚ´Ê»ã±íµÄÅÅĞòÎ»ÖÃ 
-  return vocab_size - 1;//·µ»ØÕâ¸ö´ÊÔÚ*vocabÖĞµÄÎ»ÖÃ
+  }//ç®¡ç†è¯è¡¨çš„å†…å­˜
+  hash = GetWordHash(word);//æ±‚è¿™ä¸ªè¯çš„hashå€¼
+  while (vocab_hash[hash] != -1)//å¦‚æœhashå€¼å†²çªäº†
+	  hash = (hash + 1) % vocab_hash_size;//ä½¿ç”¨å¼€æ”¾åœ°å€æ³•è§£å†³å†²çª
+  vocab_hash[hash] = vocab_size - 1;//ç”±è¯çš„hashå€¼æ‰¾åˆ°å¥¹æ‰€åœ¨è¯æ±‡è¡¨çš„æ’åºä½ç½® 
+  return vocab_size - 1;//è¿”å›è¿™ä¸ªè¯åœ¨*vocabä¸­çš„ä½ç½®
 }
 
 // Used later for sorting by word counts
 int VocabCompare(const void *a, const void *b)
 {
-    return ((struct vocab_word *)b)->cn - ((struct vocab_word *)a)->cn;//attention here, Ö¸ÕëµÄÇ¿ÖÆ×ª»»
+    return ((struct vocab_word *)b)->cn - ((struct vocab_word *)a)->cn;//attention here, æŒ‡é’ˆçš„å¼ºåˆ¶è½¬æ¢
 }
 
 // Sorts the vocabulary by frequency using word counts
-// ¸ù¾İ´ÊÆµÅÅĞò
+// æ ¹æ®è¯é¢‘æ’åº
 void SortVocab()
 {
   int a, size;
   unsigned int hash;
   // Sort the vocabulary and keep </s> at the first position
-  qsort(&vocab[1], vocab_size - 1, sizeof(struct vocab_word), VocabCompare);//ĞèÁË½âCÓïÑÔÖĞµÄ¿ìÅÅ
+  qsort(&vocab[1], vocab_size - 1, sizeof(struct vocab_word), VocabCompare);//éœ€äº†è§£Cè¯­è¨€ä¸­çš„å¿«æ’
   for (a = 0; a < vocab_hash_size; a++)
-	  vocab_hash[a] = -1;//Ã»¶®Õâ¾ä
-  size = vocab_size;//vocab_sizeÈ«¾Ö±äÁ¿,±íÊ¾*vocabµÄ³¤¶È
+	  vocab_hash[a] = -1;//æ²¡æ‡‚è¿™å¥
+  size = vocab_size;//vocab_sizeå…¨å±€å˜é‡,è¡¨ç¤º*vocabçš„é•¿åº¦
   train_words = 0;
   for (a = 0; a < size; a++)
   {
     // Words occuring less than min_count times will be discarded from the vocab
-	//³öÏÖÌ«ÉÙµÄ´ÊÖ±½Ó¶ªÆú
+	//å‡ºç°å¤ªå°‘çš„è¯ç›´æ¥ä¸¢å¼ƒ
     if (vocab[a].cn < min_count)
     {
       vocab_size--;
@@ -191,7 +187,7 @@ void SortVocab()
     else
     {
       // Hash will be re-computed, as after the sorting it is not actual
-      // ÖØĞÂ¼ÆËãhash²éÕÒ¡£vocab_hashÊÇÓÉhashÖµÕÒµ½¸Ã´ÊËùÔÚÎ»ÖÃ
+      // é‡æ–°è®¡ç®—hashæŸ¥æ‰¾ã€‚vocab_hashæ˜¯ç”±hashå€¼æ‰¾åˆ°è¯¥è¯æ‰€åœ¨ä½ç½®
       hash=GetWordHash(vocab[a].word);
       while (vocab_hash[hash] != -1) hash = (hash + 1) % vocab_hash_size;
       vocab_hash[hash] = a;
@@ -208,12 +204,12 @@ void SortVocab()
 }
 
 // Reduces the vocabulary by removing infrequent tokens
-// ÔÙ´ÎÒÆ³ı´ÊÆµ¹ıĞ¡µÄ´Ê£¬Ëõ¼õ´Ê»ã±í
+// å†æ¬¡ç§»é™¤è¯é¢‘è¿‡å°çš„è¯ï¼Œç¼©å‡è¯æ±‡è¡¨
 void ReduceVocab()
 {
   int a, b = 0;
   unsigned int hash;
-  for (a = 0; a < vocab_size; a++)//ÎÒ²İ£¬ÕâºÜÈİÒ×¿´´í°¡
+  for (a = 0; a < vocab_size; a++)//æˆ‘è‰ï¼Œè¿™å¾ˆå®¹æ˜“çœ‹é”™å•Š
 	if (vocab[a].cn > min_reduce)
 	{
 		vocab[b].cn = vocab[a].cn;
@@ -223,7 +219,7 @@ void ReduceVocab()
 	else 
 		free(vocab[a].word);
   
-  vocab_size = b;//¸üĞÂ´Ë±í³¤¶È
+  vocab_size = b;//æ›´æ–°æ­¤è¡¨é•¿åº¦
   
   for (a = 0; a < vocab_hash_size; a++) 
 	  vocab_hash[a] = -1;
@@ -234,30 +230,30 @@ void ReduceVocab()
     while (vocab_hash[hash] != -1) hash = (hash + 1) % vocab_hash_size;
     vocab_hash[hash] = a;
   }
-  fflush(stdout);//³åÏ´Ğ´ÎÄ¼ş»º³åÇø
+  fflush(stdout);//å†²æ´—å†™æ–‡ä»¶ç¼“å†²åŒº
   min_reduce++;
 }
 
-// Create binary Huffman tree using the word counts¸ù¾İ´ÊÆµ´´½¨huffmanÊ÷
-// Frequent words will have short uniqe binary codes´ÊÆµÔ½´óµÄµ¥´ÊÓĞÔ½¶ÌµÄhuffman±àÂë
+// Create binary Huffman tree using the word countsæ ¹æ®è¯é¢‘åˆ›å»ºhuffmanæ ‘
+// Frequent words will have short uniqe binary codesè¯é¢‘è¶Šå¤§çš„å•è¯æœ‰è¶ŠçŸ­çš„huffmanç¼–ç 
 void CreateBinaryTree() {
   long long a, b, i, min1i, min2i, pos1, pos2, point[MAX_CODE_LENGTH];
   char code[MAX_CODE_LENGTH];
-  long long *count = (long long *)calloc(vocab_size * 2 + 1, sizeof(long long));//ÎªÉ¶ÕâÃ´¶¨Òå£¿
-  long long *binary = (long long *)calloc(vocab_size * 2 + 1, sizeof(long long));//Í¬ÉÏ£¿
+  long long *count = (long long *)calloc(vocab_size * 2 + 1, sizeof(long long));//ä¸ºå•¥è¿™ä¹ˆå®šä¹‰ï¼Ÿ
+  long long *binary = (long long *)calloc(vocab_size * 2 + 1, sizeof(long long));//åŒä¸Šï¼Ÿ
   long long *parent_node = (long long *)calloc(vocab_size * 2 + 1, sizeof(long long));//
   for (a = 0; a < vocab_size; a++) 
 	  count[a] = vocab[a].cn;
   for (a = vocab_size; a < vocab_size * 2; a++) 
-	  count[a] = 1e15;//Ê²Ã´¹í£¿
+	  count[a] = 1e15;//ä»€ä¹ˆé¬¼ï¼Ÿ
   
   pos1 = vocab_size - 1;
   pos2 = vocab_size;
   // Following algorithm constructs the Huffman tree by adding one node at a time
   for (a = 0; a < vocab_size - 1; a++)
   { 
-    // First, find two smallest nodes 'min1, min2' ÕÒ³öÄ¿Ç°È¨Öµ×îĞ¡µÄÁ½¸ö½Úµã
-    if (pos1 >= 0)//µÚÒ»¸öÈ¨Öµ×îĞ¡µÄ½Úµã
+    // First, find two smallest nodes 'min1, min2' æ‰¾å‡ºç›®å‰æƒå€¼æœ€å°çš„ä¸¤ä¸ªèŠ‚ç‚¹
+    if (pos1 >= 0)//ç¬¬ä¸€ä¸ªæƒå€¼æœ€å°çš„èŠ‚ç‚¹
     {
       if (count[pos1] < count[pos2])
       {
@@ -275,7 +271,7 @@ void CreateBinaryTree() {
       min1i = pos2;
       pos2++;
     }
-    if (pos1 >= 0)//µÚ¶ş¸öÈ¨Öµ×îĞ¡µÄ½Úµã
+    if (pos1 >= 0)//ç¬¬äºŒä¸ªæƒå€¼æœ€å°çš„èŠ‚ç‚¹
     {
       if (count[pos1] < count[pos2])
       {
@@ -294,10 +290,10 @@ void CreateBinaryTree() {
       pos2++;
     }
 	
-    count[vocab_size + a] = count[min1i] + count[min2i];//¸üĞÂÈ¨Öµ
-    parent_node[min1i] = vocab_size + a;//¸üĞÂ¸¸½Úµã
-    parent_node[min2i] = vocab_size + a;//¸üĞÂ¸¸½Úµã
-    binary[min2i] = 1;//½Úµã±àÂëÎª1£¬Ö®Ç°Ä¬ÈÏÊÇ0¡£word×ÜÔÚ0µÄ×Ó½ÚµãÕâ±ß
+    count[vocab_size + a] = count[min1i] + count[min2i];//æ›´æ–°æƒå€¼
+    parent_node[min1i] = vocab_size + a;//æ›´æ–°çˆ¶èŠ‚ç‚¹
+    parent_node[min2i] = vocab_size + a;//æ›´æ–°çˆ¶èŠ‚ç‚¹
+    binary[min2i] = 1;//èŠ‚ç‚¹ç¼–ç ä¸º1ï¼Œä¹‹å‰é»˜è®¤æ˜¯0ã€‚wordæ€»åœ¨0çš„å­èŠ‚ç‚¹è¿™è¾¹
   }
   
   // Now assign binary code to each vocabulary word
@@ -307,63 +303,63 @@ void CreateBinaryTree() {
     i = 0;
     while (1)
     {
-      code[i] = binary[b];//codeµÄ±àÂëÊÇ´ÓÒ¶×Óµ½¸ùµÄ
+      code[i] = binary[b];//codeçš„ç¼–ç æ˜¯ä»å¶å­åˆ°æ ¹çš„
       point[i] = b;
       i++;
       b = parent_node[b];
-      if (b == vocab_size * 2 - 2) break;//¸ù½Úµã
+      if (b == vocab_size * 2 - 2) break;//æ ¹èŠ‚ç‚¹
     }
-    vocab[a].codelen = i;//±àÂë³¤¶È
-    vocab[a].point[0] = vocab_size - 2;//Õâ¸ö
+    vocab[a].codelen = i;//ç¼–ç é•¿åº¦
+    vocab[a].point[0] = vocab_size - 2;//è¿™ä¸ª
     for (b = 0; b < i; b++)
     {
       vocab[a].code[i - b - 1] = code[b];
       vocab[a].point[i - b] = point[b] - vocab_size;
     }
   }
-  //ÊÍ·Å¾Ö²¿±äÁ¿ÄÚ´æ
+  //é‡Šæ”¾å±€éƒ¨å˜é‡å†…å­˜
   free(count);
   free(binary);
   free(parent_node);
 }
 
-//´Ó·Ö´ÊÎÄ¼şÖĞÍ³¼ÆÃ¿¸öµ¥´ÊµÄ´ÊÆµ
+//ä»åˆ†è¯æ–‡ä»¶ä¸­ç»Ÿè®¡æ¯ä¸ªå•è¯çš„è¯é¢‘
 void LearnVocabFromTrainFile()
 {
   char word[MAX_STRING];
   FILE *fin;
   long long a, i;
-  for (a = 0; a < vocab_hash_size; a++) vocab_hash[a] = -1;//ËùÓĞµÄ¹şÏ£Öµ¶ÔÓ¦µÄµ¥´ÊÎ»ÖÃ³õÊ¼»¯Îª-1£¬ºóÃæÅĞ¶ÏhashÖµÊÇ·ñ³åÍ»»áÓÃµ½
+  for (a = 0; a < vocab_hash_size; a++) vocab_hash[a] = -1;//æ‰€æœ‰çš„å“ˆå¸Œå€¼å¯¹åº”çš„å•è¯ä½ç½®åˆå§‹åŒ–ä¸º-1ï¼Œåé¢åˆ¤æ–­hashå€¼æ˜¯å¦å†²çªä¼šç”¨åˆ°
   fin = fopen(train_file, "rb");
   if (fin == NULL)
   {
     printf("ERROR: training data file not found!\n");
     exit(1);
-  }//Ã»ÓĞ¶ÁÈ¡µ½ÎÄ¼şÔòÍË³ö£¬Ó¦¸ÃÓĞÕâÖÖÅĞ¶Ï£¬Ñ§Ï°ÁË
+  }//æ²¡æœ‰è¯»å–åˆ°æ–‡ä»¶åˆ™é€€å‡ºï¼Œåº”è¯¥æœ‰è¿™ç§åˆ¤æ–­ï¼Œå­¦ä¹ äº†
   vocab_size = 0;
-  AddWordToVocab((char *)"</s>");//Ô¤´¦ÀíÖ®½«</s>·ÅÔÚ*vocabµÄµÚÒ»¸ö
+  AddWordToVocab((char *)"</s>");//é¢„å¤„ç†ä¹‹å°†</s>æ”¾åœ¨*vocabçš„ç¬¬ä¸€ä¸ª
   while (1)
   {
     ReadWord(word, fin);
-    if (feof(fin)) break;//Ö»ÓĞ¶ÁÍêÎÄ¼ş²Åbreak
-    train_words++;//Ã»¶ÁÒ»¸öword£¬¼ÇÂ¼Ò»ÏÂ
+    if (feof(fin)) break;//åªæœ‰è¯»å®Œæ–‡ä»¶æ‰break
+    train_words++;//æ²¡è¯»ä¸€ä¸ªwordï¼Œè®°å½•ä¸€ä¸‹
     if ((debug_mode > 1) && (train_words % 100000 == 0))
     {
       printf("%lldK%c", train_words / 1000, 13);
       fflush(stdout);
-    }//debug_mode ÊµÔÚÃ»¶®
-    i = SearchVocab(word);//·µ»Ø¸Ã´ÊÔÚ´Ê»ã±íÖĞµÄÎ»ÖÃ
-    if (i == -1)//¸Ã´ÊÖ®Ç°²»´æÔÚ
+    }//debug_mode å®åœ¨æ²¡æ‡‚
+    i = SearchVocab(word);//è¿”å›è¯¥è¯åœ¨è¯æ±‡è¡¨ä¸­çš„ä½ç½®
+    if (i == -1)//è¯¥è¯ä¹‹å‰ä¸å­˜åœ¨
     {
-      a = AddWordToVocab(word);//°Ñ¸Ã´ÊÌí¼Óµ½´Ê»ã±íÖĞ
+      a = AddWordToVocab(word);//æŠŠè¯¥è¯æ·»åŠ åˆ°è¯æ±‡è¡¨ä¸­
       vocab[a].cn = 1;
     }
-    else vocab[i].cn++;//¸üĞÂ´ÊÆµ
-    if (vocab_size > vocab_hash_size * 0.7)//Èç¹û´Ê»ã±íÌ«ÅÓ´ó£¬¾ÍËõ¼õ;ÆÀÅĞÒÀ¾İÊÇÊ²Ã´ÄØ£¿
+    else vocab[i].cn++;//æ›´æ–°è¯é¢‘
+    if (vocab_size > vocab_hash_size * 0.7)//å¦‚æœè¯æ±‡è¡¨å¤ªåºå¤§ï¼Œå°±ç¼©å‡;è¯„åˆ¤ä¾æ®æ˜¯ä»€ä¹ˆå‘¢ï¼Ÿ
     	ReduceVocab();
-  }//ÑµÁ·ÎÄ¼ş¶ÁÈ¡Íê±Ï
+  }//è®­ç»ƒæ–‡ä»¶è¯»å–å®Œæ¯•
   
-  SortVocab();//¸ù¾İ´ÊÆµÅÅĞò´Ê»ã±í
+  SortVocab();//æ ¹æ®è¯é¢‘æ’åºè¯æ±‡è¡¨
   if (debug_mode > 0)
   {
     printf("Vocab size: %lld\n", vocab_size);
@@ -377,48 +373,48 @@ void SaveVocab() {
   long long i;
   FILE *fo = fopen(save_vocab_file, "wb");
   for (i = 0; i < vocab_size; i++) fprintf(fo, "%s %lld\n", vocab[i].word, vocab[i].cn);
-  fclose(fo);//½«´Ê»ã±íĞ´ÈëÎÄ¼ş
+  fclose(fo);//å°†è¯æ±‡è¡¨å†™å…¥æ–‡ä»¶
 }
 
-//´ÓÎÄ¼ş¶ÁÈ¡´Ê»ã£¬¸ÃÎÄ¼şÒÑ¾­Í³¼ÆºÃÁËÃ¿¸ö´Ê»ãµÄ´ÊÆµ
+//ä»æ–‡ä»¶è¯»å–è¯æ±‡ï¼Œè¯¥æ–‡ä»¶å·²ç»ç»Ÿè®¡å¥½äº†æ¯ä¸ªè¯æ±‡çš„è¯é¢‘
 void ReadVocab()
 {
   long long a, i = 0;
   char c;
   char word[MAX_STRING];
-  FILE *fin = fopen(read_vocab_file, "rb");//´ò¿ª´Ê»ãÎÄ¼ş
+  FILE *fin = fopen(read_vocab_file, "rb");//æ‰“å¼€è¯æ±‡æ–‡ä»¶
   if (fin == NULL)
   {
     printf("Vocabulary file not found\n");
     exit(1);
   }
-  for (a = 0; a < vocab_hash_size; a++)//vocab_hash³õÊ¼»¯£¬Î´Ê¹ÓÃµÄhashÖµ¶ÔÓ¦-1
+  for (a = 0; a < vocab_hash_size; a++)//vocab_hashåˆå§‹åŒ–ï¼Œæœªä½¿ç”¨çš„hashå€¼å¯¹åº”-1
 	  vocab_hash[a] = -1;
-  vocab_size = 0;//³õÊ¼»¯ vocab_size Îª 0 
+  vocab_size = 0;//åˆå§‹åŒ– vocab_size ä¸º 0 
   while (1)
   {
-    ReadWord(word, fin);//´Ófin½øÈëÒ»¸ö´Êµ½wordÖĞ
-    if (feof(fin)) break;//¶ÁÍêÁË¾ÍÍË³ö
-    a = AddWordToVocab(word);//°Ñ¸Ã´ÊÌí¼Óµ½´Ê»ã±íÖĞ£¬²¢·µ»Ø¸Ã´ÊÔÚ´Ë±íÖĞµÄÎ»ÖÃ
-    fscanf(fin, "%lld%c", &vocab[a].cn, &c);//¶ÁÈ¡´ÊÆµ£¿cÊÇ¸ÉÉ¶µÄÂğ£¬¶ÁÈ¡¿Õ¸ñÂğ   ÔİÊ±¿ÉÒÔµ±¿´¶®ÁË
+    ReadWord(word, fin);//ä»finè¿›å…¥ä¸€ä¸ªè¯åˆ°wordä¸­
+    if (feof(fin)) break;//è¯»å®Œäº†å°±é€€å‡º
+    a = AddWordToVocab(word);//æŠŠè¯¥è¯æ·»åŠ åˆ°è¯æ±‡è¡¨ä¸­ï¼Œå¹¶è¿”å›è¯¥è¯åœ¨æ­¤è¡¨ä¸­çš„ä½ç½®
+    fscanf(fin, "%lld%c", &vocab[a].cn, &c);//è¯»å–è¯é¢‘ï¼Ÿcæ˜¯å¹²å•¥çš„å—ï¼Œè¯»å–ç©ºæ ¼å—   æš‚æ—¶å¯ä»¥å½“çœ‹æ‡‚äº†
     i++;
   }
-  SortVocab();//¸ù¾İ´ÊÆµÅÅĞò???²»ÊÇÒÑ¾­ÅÅĞòÁË£¿ÄÑµÀÊÇÎªÁË¸´ÓÃ£¿
-  if (debug_mode > 0)//debug model Ö®ºóÔÙ¿´
+  SortVocab();//æ ¹æ®è¯é¢‘æ’åº???ä¸æ˜¯å·²ç»æ’åºäº†ï¼Ÿéš¾é“æ˜¯ä¸ºäº†å¤ç”¨ï¼Ÿ
+  if (debug_mode > 0)//debug model ä¹‹åå†çœ‹
   {
     printf("Vocab size: %lld\n", vocab_size);
     printf("Words in train file: %lld\n", train_words);
   }
 
-  //¶ÁÈ¡ÑµÁ·Êı¾İ
+  //è¯»å–è®­ç»ƒæ•°æ®
   fin = fopen(train_file, "rb");
   if (fin == NULL)
   {
     printf("ERROR: training data file not found!\n");
     exit(1);
   }
-  fseek(fin, 0, SEEK_END);//ÎÄ¼şÖ¸ÕëÖ¸Ïò SEEK_END Îª»ù×¼£¬Æ«ÒÆÎª0µÄÎ»ÖÃ¡£ÕâÀïºÃÏñ¾ÍÊÇ Ö±½Óµ½ÎÄ¼şÄ©Î²£¬¾ßÌå¹¦ÄÜÖ®ºó¿´
-  file_size = ftell(fin);//¸ù¾İÖ¸Õë¼ÆËãÎÄ¼ş´óĞ¡¡£
+  fseek(fin, 0, SEEK_END);//æ–‡ä»¶æŒ‡é’ˆæŒ‡å‘ SEEK_END ä¸ºåŸºå‡†ï¼Œåç§»ä¸º0çš„ä½ç½®ã€‚è¿™é‡Œå¥½åƒå°±æ˜¯ ç›´æ¥åˆ°æ–‡ä»¶æœ«å°¾ï¼Œå…·ä½“åŠŸèƒ½ä¹‹åçœ‹
+  file_size = ftell(fin);//æ ¹æ®æŒ‡é’ˆè®¡ç®—æ–‡ä»¶å¤§å°ã€‚
   fclose(fin);
 }
 
@@ -426,12 +422,12 @@ void InitNet()//
 {
   long long a, b;
   a = posix_memalign((void **)&syn0, 128, (long long)vocab_size * layer1_size * sizeof(real));
-  //ÏÈÖªµÀÕâ¸öÒ²ÊÇÉêÇë¶¯Ì¬Êı×é£¬¶ÔÆë»¹ÓĞ128Õâ¸ö²ÎÊıÒÔºóÔÙÁË½â
+  //å…ˆçŸ¥é“è¿™ä¸ªä¹Ÿæ˜¯ç”³è¯·åŠ¨æ€æ•°ç»„ï¼Œå¯¹é½è¿˜æœ‰128è¿™ä¸ªå‚æ•°ä»¥åå†äº†è§£
   if (syn0 == NULL)
   {
 	  printf("Memory allocation failed\n"); exit(1);
   }
-  if (hs)//²ÉÓÃsoftmax hirarchical softmax
+  if (hs)//é‡‡ç”¨softmax hirarchical softmax
   {
     a = posix_memalign((void **)&syn1, 128, (long long)vocab_size * layer1_size * sizeof(real));
     if (syn1 == NULL)
@@ -440,9 +436,9 @@ void InitNet()//
     }
     for (b = 0; b < layer1_size; b++)
     	for (a = 0; a < vocab_size; a++)
-    		syn1[a * layer1_size + b] = 0;//ÎªÊ²Ã´Òª³õÊ¼»¯³É0ÄØ£¿
+    		syn1[a * layer1_size + b] = 0;//ä¸ºä»€ä¹ˆè¦åˆå§‹åŒ–æˆ0å‘¢ï¼Ÿ
   }
-  if (negative>0)//»¹ÓĞ¸ºÑù±¾
+  if (negative>0)//è¿˜æœ‰è´Ÿæ ·æœ¬
   {
     a = posix_memalign((void **)&syn1neg, 128, (long long)vocab_size * layer1_size * sizeof(real));
     if (syn1neg == NULL)
@@ -456,12 +452,12 @@ void InitNet()//
   
   for (b = 0; b < layer1_size; b++)
 	  for (a = 0; a < vocab_size; a++)
-		  syn0[a * layer1_size + b] = (rand() / (real)RAND_MAX - 0.5) / layer1_size;//³õÊ¼»¯ÏòÁ¿£¡£¡£¡ÕÒµ½ÁË£¡
-  CreateBinaryTree();//½¨Á¢huffmanÊ÷£¬¶ÔÃ¿¸öµ¥´Ê½øĞĞ±àÂë
+		  syn0[a * layer1_size + b] = (rand() / (real)RAND_MAX - 0.5) / layer1_size;//åˆå§‹åŒ–å‘é‡ï¼ï¼ï¼æ‰¾åˆ°äº†ï¼
+  CreateBinaryTree();//å»ºç«‹huffmanæ ‘ï¼Œå¯¹æ¯ä¸ªå•è¯è¿›è¡Œç¼–ç 
 }
 
 
-//Õâ¸öÏß³Ìº¯ÊıÖ´ĞĞÖ®Ç°£¬ÒÑ¾­×öºÃÁËÒ»Ğ©¹¤×÷£º¸ù¾İ´ÊÆµÅÅĞòµÄ´Ê»ã±í£¬Ã¿¸öµ¥´ÊµÄhuffman±àÂë
+//è¿™ä¸ªçº¿ç¨‹å‡½æ•°æ‰§è¡Œä¹‹å‰ï¼Œå·²ç»åšå¥½äº†ä¸€äº›å·¥ä½œï¼šæ ¹æ®è¯é¢‘æ’åºçš„è¯æ±‡è¡¨ï¼Œæ¯ä¸ªå•è¯çš„huffmanç¼–ç 
 void *TrainModelThread(void *id)
 {
   long long a, b, d, word, last_word, sentence_length = 0, sentence_position = 0;
@@ -473,8 +469,8 @@ void *TrainModelThread(void *id)
   real *neu1 = (real *)calloc(layer1_size, sizeof(real));
   real *neu1e = (real *)calloc(layer1_size, sizeof(real));
   FILE *fi = fopen(train_file, "rb");
-  //Ã¿¸öÏß³Ì¶ÔÓ¦Ò»¶ÎÎÄ±¾¡£¸ù¾İÏß³ÌidÕÒµ½×Ô¼º¸ºÔğµÄÎÄ±¾µÄ³õÊ¼Î»ÖÃ
-  fseek(fi, file_size / (long long)num_threads * (long long)id, SEEK_SET);//SEEK_SETÎÄ¼ş¿ªÍ·
+  //æ¯ä¸ªçº¿ç¨‹å¯¹åº”ä¸€æ®µæ–‡æœ¬ã€‚æ ¹æ®çº¿ç¨‹idæ‰¾åˆ°è‡ªå·±è´Ÿè´£çš„æ–‡æœ¬çš„åˆå§‹ä½ç½®
+  fseek(fi, file_size / (long long)num_threads * (long long)id, SEEK_SET);//SEEK_SETæ–‡ä»¶å¼€å¤´
   while (1)
   {
     if (word_count - last_word_count > 10000)
@@ -487,9 +483,9 @@ void *TrainModelThread(void *id)
         printf("%cAlpha: %f  Progress: %.2f%%  Words/thread/sec: %.2fk  ", 13, alpha,
          word_count_actual / (real)(train_words + 1) * 100,
          word_count_actual / ((real)(now - start + 1) / (real)CLOCKS_PER_SEC * 1000));
-        fflush(stdout);//Ç¿ÖÆĞ´ÈëÎÄ¼ş
+        fflush(stdout);//å¼ºåˆ¶å†™å…¥æ–‡ä»¶
       }
-      alpha = starting_alpha * (1 - word_count_actual / (real)(train_words + 1));//¸üĞÂ²½³¤
+      alpha = starting_alpha * (1 - word_count_actual / (real)(train_words + 1));//æ›´æ–°æ­¥é•¿
       if (alpha < starting_alpha * 0.0001) alpha = starting_alpha * 0.0001;
     }
 	
@@ -497,65 +493,65 @@ void *TrainModelThread(void *id)
     {
       while (1)
       {
-        word = ReadWordIndex(fi);//´ÓÎÄ¼şÁ÷ÖĞ¶ÁÈ¡Ò»¸ö´Ê£¬²¢·µ»ØÕâ¸ö´ÊÔÚ´Ê»ã±íÖĞµÄÎ»ÖÃ
+        word = ReadWordIndex(fi);//ä»æ–‡ä»¶æµä¸­è¯»å–ä¸€ä¸ªè¯ï¼Œå¹¶è¿”å›è¿™ä¸ªè¯åœ¨è¯æ±‡è¡¨ä¸­çš„ä½ç½®
         if (feof(fi)) break;
-        if (word == -1) continue;//ÊÇ·ñÔÚ´Ê±íÖĞ£¬Èô²»ÔÚ£¬Ìø¹ı
+        if (word == -1) continue;//æ˜¯å¦åœ¨è¯è¡¨ä¸­ï¼Œè‹¥ä¸åœ¨ï¼Œè·³è¿‡
         word_count++;
         if (word == 0) break;
         // The subsampling randomly discards frequent words while keeping the ranking same
-        if (sample > 0)//¶Ô¸ßÆµ´Ê½øĞĞÏÂ²ÉÑù£¬²»¹ıÒª±£³ÖÅÅĞò²»±ä¡£
+        if (sample > 0)//å¯¹é«˜é¢‘è¯è¿›è¡Œä¸‹é‡‡æ ·ï¼Œä¸è¿‡è¦ä¿æŒæ’åºä¸å˜ã€‚
         {
           real ran = (sqrt(vocab[word].cn / (sample * train_words)) + 1) * (sample * train_words) / vocab[word].cn;
           next_random = next_random * (unsigned long long)25214903917 + 11;
           if (ran < (next_random & 0xFFFF) / (real)65536) continue;
-        }//Ã»Ì«¶®Õâ¸öÑÇ²ÉÑùµ½µ×ÊÇÔõÃ´²ÉÑùµÄ
+        }//æ²¡å¤ªæ‡‚è¿™ä¸ªäºšé‡‡æ ·åˆ°åº•æ˜¯æ€ä¹ˆé‡‡æ ·çš„
         sen[sentence_length] = word;
         sentence_length++;
-        //1000¸öµ¥´ÊÊÓ×÷Ò»¸ö¾ä×Ó. ×÷Îª»º´æ£¬À´¿¼ÂÇÉÏÏÂÎÄ
+        //1000ä¸ªå•è¯è§†ä½œä¸€ä¸ªå¥å­. ä½œä¸ºç¼“å­˜ï¼Œæ¥è€ƒè™‘ä¸Šä¸‹æ–‡
         if (sentence_length >= MAX_SENTENCE_LENGTH) break;
       }
-      sentence_position = 0;//´Ó¾ä×ÓµÚÒ»¸ö´Ê¿ªÊ¼´¦Àí
+      sentence_position = 0;//ä»å¥å­ç¬¬ä¸€ä¸ªè¯å¼€å§‹å¤„ç†
     }
 	
-    if (feof(fi)) break;//Õâ¸öºÏÀíÂğ£¿
-    if (word_count > train_words / num_threads) break;//Èç¹ûµ±Ç°Ïß³ÌÒÑ´¦ÀíµÄµ¥´Ê³¬¹ıÁË ãĞÖµ£¬ÔòÍË³ö¡£
-    word = sen[sentence_position];//¶Á¾ä×ÓÖĞµ±Ç°´Ê
-    if (word == -1) continue;//·ÀÖ¹Ö®Ç°ÓĞ´í
-    for (c = 0; c < layer1_size; c++) neu1[c] = 0;//³õÊ¼»¯ÉÏÏÂÎÄÆ½¾ùÏòÁ¿
-    for (c = 0; c < layer1_size; c++) neu1e[c] = 0;//Õâ¸öÓÖÊÇÉ¶£¿£¿£¿
+    if (feof(fi)) break;//è¿™ä¸ªåˆç†å—ï¼Ÿ
+    if (word_count > train_words / num_threads) break;//å¦‚æœå½“å‰çº¿ç¨‹å·²å¤„ç†çš„å•è¯è¶…è¿‡äº† é˜ˆå€¼ï¼Œåˆ™é€€å‡ºã€‚
+    word = sen[sentence_position];//è¯»å¥å­ä¸­å½“å‰è¯
+    if (word == -1) continue;//é˜²æ­¢ä¹‹å‰æœ‰é”™
+    for (c = 0; c < layer1_size; c++) neu1[c] = 0;//åˆå§‹åŒ–ä¸Šä¸‹æ–‡å¹³å‡å‘é‡
+    for (c = 0; c < layer1_size; c++) neu1e[c] = 0;//è¿™ä¸ªåˆæ˜¯å•¥ï¼Ÿï¼Ÿï¼Ÿ
     next_random = next_random * (unsigned long long)25214903917 + 11;
     b = next_random % window;
     if (cbow)
     {  //train the cbow architecture
       // in -> hidden
-      for (a = b; a < window * 2 + 1 - b; a++) if (a != window)//É¨ÃèÄ¿±êµ¥´ÊµÄ×óÓÒ¼¸¸öµ¥´Ê
+      for (a = b; a < window * 2 + 1 - b; a++) if (a != window)//æ‰«æç›®æ ‡å•è¯çš„å·¦å³å‡ ä¸ªå•è¯
       {
-        c = sentence_position - window + a;//c´ú±í´°¿ÚÄÚµÄµ±Ç°¿¼ÂÇµÄÕâ¸ö´Ê£¬²»ÊÇÄ¿±ê´Ê
+        c = sentence_position - window + a;//cä»£è¡¨çª—å£å†…çš„å½“å‰è€ƒè™‘çš„è¿™ä¸ªè¯ï¼Œä¸æ˜¯ç›®æ ‡è¯
         if (c < 0) continue;
         if (c >= sentence_length) continue;
         last_word = sen[c];
         if (last_word == -1) continue;
-        for (c = 0; c < layer1_size; c++)//layer1_size´ÊÏòÁ¿µÄÎ¬¶È£¬Ä¬ÈÏÖµÊÇ100
-        	neu1[c] += syn0[c + last_word * layer1_size];//´«ËµÖĞµÄÏòÁ¿ºÍ£¿
-      }//ÎªÊ²Ã´Òª¸ã¸öÕâÃ´¸öËæ»úÊı
+        for (c = 0; c < layer1_size; c++)//layer1_sizeè¯å‘é‡çš„ç»´åº¦ï¼Œé»˜è®¤å€¼æ˜¯100
+        	neu1[c] += syn0[c + last_word * layer1_size];//ä¼ è¯´ä¸­çš„å‘é‡å’Œï¼Ÿ
+      }//ä¸ºä»€ä¹ˆè¦æä¸ªè¿™ä¹ˆä¸ªéšæœºæ•°
       if (hs) 
-		for (d = 0; d < vocab[word].codelen; d++)//¿ªÊ¼±éÀúhuffmanÊ÷£¬Ã¿´ÎÒ»¸ö½Úµã   vocab[word].codelen´ú±íwordµÄ±àÂë³¤¶È
+		for (d = 0; d < vocab[word].codelen; d++)//å¼€å§‹éå†huffmanæ ‘ï¼Œæ¯æ¬¡ä¸€ä¸ªèŠ‚ç‚¹   vocab[word].codelenä»£è¡¨wordçš„ç¼–ç é•¿åº¦
 		{
 			f = 0;
-			l2 = vocab[word].point[d] * layer1_size;//pointÓ¦¸Ã¼ÇÂ¼µÄÊÇhuffmanµÄÂ·¾¶¡£ÕÒµ½µ±Ç°½Úµã£¬²¢Ëã³ö
+			l2 = vocab[word].point[d] * layer1_size;//pointåº”è¯¥è®°å½•çš„æ˜¯huffmançš„è·¯å¾„ã€‚æ‰¾åˆ°å½“å‰èŠ‚ç‚¹ï¼Œå¹¶ç®—å‡º
 			// Propagate hidden -> output
-			for (c = 0; c < layer1_size; c++) f += neu1[c] * syn1[c + l2];//¼ÆËãÄÚ»ı
-			if (f <= -MAX_EXP) continue;//ÄÚ»ı²»ÔÚ·¶Î§ÄÚÖ±½Ó¶ªÆú
-			else if (f >= MAX_EXP) continue;//Í¬ÉÏ
-			else f = expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];//ÄÚ»ıÖ®ºósigmoidº¯Êı bingo~
+			for (c = 0; c < layer1_size; c++) f += neu1[c] * syn1[c + l2];//è®¡ç®—å†…ç§¯
+			if (f <= -MAX_EXP) continue;//å†…ç§¯ä¸åœ¨èŒƒå›´å†…ç›´æ¥ä¸¢å¼ƒ
+			else if (f >= MAX_EXP) continue;//åŒä¸Š
+			else f = expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];//å†…ç§¯ä¹‹åsigmoidå‡½æ•° bingo~
 			// 'g' is the gradient multiplied by the learning rate
-			g = (1 - vocab[word].code[d] - f) * alpha;//Æ«µ¼ÊıµÄÒ»²¿·Ö
+			g = (1 - vocab[word].code[d] - f) * alpha;//åå¯¼æ•°çš„ä¸€éƒ¨åˆ†
 
-			//layer1_sizeÊÇÏòÁ¿µÄÎ¬¶È
-			// Propagate errors output -> hidden ·´Ïò´«²¥Îó²î£¬´ÓhuffmanÊ÷´«µ½Òş²Ø²ã¡£ÏÂÃæ¾ÍÊÇ°Ñµ±Ç°ÄÚ½ÚµãµÄÎó²î´«²¥¸øÒş²Ø²ã£¬syn1[c + l2]ÊÇÆ«µ¼ÊıµÄÒ»²¿·Ö¡£
+			//layer1_sizeæ˜¯å‘é‡çš„ç»´åº¦
+			// Propagate errors output -> hidden åå‘ä¼ æ’­è¯¯å·®ï¼Œä»huffmanæ ‘ä¼ åˆ°éšè—å±‚ã€‚ä¸‹é¢å°±æ˜¯æŠŠå½“å‰å†…èŠ‚ç‚¹çš„è¯¯å·®ä¼ æ’­ç»™éšè—å±‚ï¼Œsyn1[c + l2]æ˜¯åå¯¼æ•°çš„ä¸€éƒ¨åˆ†ã€‚
 			for (c = 0; c < layer1_size; c++) neu1e[c] += g * syn1[c + l2];
 
-			// Learn weights hidden -> output ¸üĞÂµ±Ç°ÄÚ½ÚµãµÄÏòÁ¿£¬ºóÃæµÄneu1[c]ÆäÊµÊÇÆ«µ¼ÊıµÄÒ»²¿·Ö
+			// Learn weights hidden -> output æ›´æ–°å½“å‰å†…èŠ‚ç‚¹çš„å‘é‡ï¼Œåé¢çš„neu1[c]å…¶å®æ˜¯åå¯¼æ•°çš„ä¸€éƒ¨åˆ†
 			for (c = 0; c < layer1_size; c++) syn1[c + l2] += g * neu1[c];
 		}
 	
@@ -565,8 +561,8 @@ void *TrainModelThread(void *id)
       {
         if (d == 0)
         {
-          target = word;//Ä¿±êµ¥´Ê
-          label = 1;//ÕıÑù±¾
+          target = word;//ç›®æ ‡å•è¯
+          label = 1;//æ­£æ ·æœ¬
         }
         else
         {
@@ -574,27 +570,27 @@ void *TrainModelThread(void *id)
           target = table[(next_random >> 16) % table_size];
           if (target == 0) target = next_random % (vocab_size - 1) + 1;
           if (target == word) continue;
-          label = 0;//¸ºÑù±¾
+          label = 0;//è´Ÿæ ·æœ¬
         }
         l2 = target * layer1_size;
         f = 0;
         for (c = 0; c < layer1_size; c++)
-        	f += neu1[c] * syn1neg[c + l2];//ÄÚ»ı
+        	f += neu1[c] * syn1neg[c + l2];//å†…ç§¯
         if (f > MAX_EXP)
         	g = (label - 1) * alpha;
         else if (f < -MAX_EXP)
         	g = (label - 0) * alpha;
-        else g = (label - expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;//ÍêÈ«²»ÊÇÒ»¸ö·ç¸ñµÄ£¡
+        else g = (label - expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;//å®Œå…¨ä¸æ˜¯ä¸€ä¸ªé£æ ¼çš„ï¼
         for (c = 0; c < layer1_size; c++)
-        	neu1e[c] += g * syn1neg[c + l2];//Òş²Ø²ãµÄÎó²î
+        	neu1e[c] += g * syn1neg[c + l2];//éšè—å±‚çš„è¯¯å·®
         for (c = 0; c < layer1_size; c++)
-        	syn1neg[c + l2] += g * neu1[c];//¸üĞÂ¸ºÑù±¾ÏòÁ¿
+        	syn1neg[c + l2] += g * neu1[c];//æ›´æ–°è´Ÿæ ·æœ¬å‘é‡
       }
       //end of NEGATIVE SAMPLING
 	  
 	  // hidden -> in
-      for (a = b; a < window * 2 + 1 - b; a++)//´°¿Ú´óĞ¡ÓÉ²ÎÊı¾ö¶¨
-      if (a != window)//cbowÄ£ĞÍ ¸üĞÂµÄ²»ÊÇÖĞ¼ä´ÊÓïµÄÏòÁ¿£¬¶øÊÇÖÜÎ§¼¸¸ö´ÊÓïµÄÏòÁ¿¡£
+      for (a = b; a < window * 2 + 1 - b; a++)//çª—å£å¤§å°ç”±å‚æ•°å†³å®š
+      if (a != window)//cbowæ¨¡å‹ æ›´æ–°çš„ä¸æ˜¯ä¸­é—´è¯è¯­çš„å‘é‡ï¼Œè€Œæ˜¯å‘¨å›´å‡ ä¸ªè¯è¯­çš„å‘é‡ã€‚
       {
         c = sentence_position - window + a;
         if (c < 0) continue;
@@ -602,13 +598,13 @@ void *TrainModelThread(void *id)
         last_word = sen[c];
         if (last_word == -1) continue;
         for (c = 0; c < layer1_size; c++)
-        	syn0[c + last_word * layer1_size] += neu1e[c];//¸üĞÂ´ÊÏòÁ¿
+        	syn0[c + last_word * layer1_size] += neu1e[c];//æ›´æ–°è¯å‘é‡
       }                                                                                                                                        
     }
     else
     {  //train skip-gram
        for (a = b; a < window * 2 + 1 - b; a++)
-       if (a != window)//É¨ÃèÖÜÎ§¼¸¸ö´ÊÓï
+       if (a != window)//æ‰«æå‘¨å›´å‡ ä¸ªè¯è¯­
        {
         c = sentence_position - window + a;
         if (c < 0) continue;
@@ -620,27 +616,27 @@ void *TrainModelThread(void *id)
         	neu1e[c] = 0;
         // HIERARCHICAL SOFTMAX
         if (hs)
-        for (d = 0; d < vocab[word].codelen; d++)//±éÀúÒ¶×Ó½Úµã
+        for (d = 0; d < vocab[word].codelen; d++)//éå†å¶å­èŠ‚ç‚¹
         {
           f = 0;
-          l2 = vocab[word].point[d] * layer1_size;//point¼ÇÂ¼µÄÊÇhuffmanµÄÂ·¾¶
-          // Propagate hidden -> output ¸Ğ¾õÔ´´úÂëÕâ¸öÓ¢Óï×¢ÊÍÓĞµãÎóµ¼ÈË£¬ÕâÀïµÄÒş²Ø²ã¾ÍÊÇÊäÈë²ã£¬¾ÍÊÇ´ÊÏòÁ¿¡£
+          l2 = vocab[word].point[d] * layer1_size;//pointè®°å½•çš„æ˜¯huffmançš„è·¯å¾„
+          // Propagate hidden -> output æ„Ÿè§‰æºä»£ç è¿™ä¸ªè‹±è¯­æ³¨é‡Šæœ‰ç‚¹è¯¯å¯¼äººï¼Œè¿™é‡Œçš„éšè—å±‚å°±æ˜¯è¾“å…¥å±‚ï¼Œå°±æ˜¯è¯å‘é‡ã€‚
           for (c = 0; c < layer1_size; c++)
-        	  f += syn0[c + l1] * syn1[c + l2];//¼ÆËãÁ½¸ö´ÊÏòÁ¿µÄÄÚ»ı
+        	  f += syn0[c + l1] * syn1[c + l2];//è®¡ç®—ä¸¤ä¸ªè¯å‘é‡çš„å†…ç§¯
           if (f <= -MAX_EXP) continue;
           else if (f >= MAX_EXP) continue;
           else f = expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];
           // 'g' is the gradient multiplied by the learning rate
-          g = (1 - vocab[word].code[d] - f) * alpha;//Æ«µ¼ÊıµÄÒ»²¿·Ö
+          g = (1 - vocab[word].code[d] - f) * alpha;//åå¯¼æ•°çš„ä¸€éƒ¨åˆ†
           // Propagate errors output -> hidden
           for (c = 0; c < layer1_size; c++)
-        	  neu1e[c] += g * syn1[c + l2];//Òş²Ø²ãµÄÎó²î
+        	  neu1e[c] += g * syn1[c + l2];//éšè—å±‚çš„è¯¯å·®
           // Learn weights hidden -> output
           for (c = 0; c < layer1_size; c++)
-        	  syn1[c + l2] += g * syn0[c + l1];//¸üĞÂÒ¶×Ó½ÚµãÏòÁ¿
+        	  syn1[c + l2] += g * syn0[c + l1];//æ›´æ–°å¶å­èŠ‚ç‚¹å‘é‡
         }
         // NEGATIVE SAMPLING
-        if (negative > 0)//Õâ¸öÍ¬cobow²î²»¶à
+        if (negative > 0)//è¿™ä¸ªåŒcobowå·®ä¸å¤š
         for (d = 0; d < negative + 1; d++)
         {
           if (d == 0)
@@ -672,7 +668,7 @@ void *TrainModelThread(void *id)
 
         // Learn weights input -> hidden
         for (c = 0; c < layer1_size; c++)
-        	syn0[c + l1] += neu1e[c];//¸üĞÂÖÜÎ§¼¸¸ö´ÊÓïµÄÏòÁ¿
+        	syn0[c + l1] += neu1e[c];//æ›´æ–°å‘¨å›´å‡ ä¸ªè¯è¯­çš„å‘é‡
       }
     }
     
@@ -696,12 +692,12 @@ void TrainModel()
   pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
   printf("Starting training using file %s\n", train_file);
   starting_alpha = alpha;
-  if (read_vocab_file[0] != 0)//ÊÇ·ñÓĞ´ÊÆµÎÄ¼ş,Èç¹ûÓĞ
-	  ReadVocab();//´ÓÎÄ¼ş¶ÁÈë´Ê»ã
-  else//Ã»ÓĞ£¬Ôò
-	  LearnVocabFromTrainFile();//´ÓÑµÁ·ÎÄ¼şÑ§Ï°´Ê»ã
+  if (read_vocab_file[0] != 0)//æ˜¯å¦æœ‰è¯é¢‘æ–‡ä»¶,å¦‚æœæœ‰
+	  ReadVocab();//ä»æ–‡ä»¶è¯»å…¥è¯æ±‡
+  else//æ²¡æœ‰ï¼Œåˆ™
+	  LearnVocabFromTrainFile();//ä»è®­ç»ƒæ–‡ä»¶å­¦ä¹ è¯æ±‡
   if (save_vocab_file[0] != 0)
-	  SaveVocab();//±£´æ´Ê»ã
+	  SaveVocab();//ä¿å­˜è¯æ±‡
   if (output_file[0] == 0)
 	  return;
   InitNet();
@@ -710,9 +706,9 @@ void TrainModel()
   for (a = 0; a < num_threads; a++) 
 	  pthread_create(&pt[a], NULL, TrainModelThread, (void *)a);
   for (a = 0; a < num_threads; a++) 
-	  pthread_join(pt[a], NULL);//µÈ´ıËùÓĞµÄÏß³Ì½áÊø
+	  pthread_join(pt[a], NULL);//ç­‰å¾…æ‰€æœ‰çš„çº¿ç¨‹ç»“æŸ
   fo = fopen(output_file, "wb");
-  if (classes == 0) //²»ĞèÒª¾ÛÀà£¬Ö»ĞèÒªÊä³ö´ÊÏòÁ¿
+  if (classes == 0) //ä¸éœ€è¦èšç±»ï¼Œåªéœ€è¦è¾“å‡ºè¯å‘é‡
   {
     // Save the word vectors
     fprintf(fo, "%lld %lld\n", vocab_size, layer1_size);
@@ -728,41 +724,41 @@ void TrainModel()
       fprintf(fo, "\n");
     }
   }
-  else //Ê¹ÓÃk-means½øĞĞ¾ÛÀà
+  else //ä½¿ç”¨k-meansè¿›è¡Œèšç±»
   {
     // Run K-means on the word vectors
     int clcn = classes, iter = 10, closeid;
-    int *centcn = (int *)malloc(classes * sizeof(int));//¸ÃÀà±ğµÄÊıÁ¿
-    int *cl = (int *)calloc(vocab_size, sizeof(int));//´Êµ½Àà±ğµÄÓ³Éä
+    int *centcn = (int *)malloc(classes * sizeof(int));//è¯¥ç±»åˆ«çš„æ•°é‡
+    int *cl = (int *)calloc(vocab_size, sizeof(int));//è¯åˆ°ç±»åˆ«çš„æ˜ å°„
     real closev, x;
-    real *cent = (real *)calloc(classes * layer1_size, sizeof(real));//ÖÊĞÄÊı×é
+    real *cent = (real *)calloc(classes * layer1_size, sizeof(real));//è´¨å¿ƒæ•°ç»„
     for (a = 0; a < vocab_size; a++)
-    	cl[a] = a % clcn;//ÈÎÒâ·ÖÀà£¿
+    	cl[a] = a % clcn;//ä»»æ„åˆ†ç±»ï¼Ÿ
     for (a = 0; a < iter; a++)
     {
       for (b = 0; b < clcn * layer1_size; b++)
-    	  cent[b] = 0;//ÖÊĞÄÇåÁã
+    	  cent[b] = 0;//è´¨å¿ƒæ¸…é›¶
       for (b = 0; b < clcn; b++)
     	  centcn[b] = 1;
       for (c = 0; c < vocab_size; c++)
       {
         for (d = 0; d < layer1_size; d++)
-        	cent[layer1_size * cl[c] + d] += syn0[c * layer1_size + d];//ÇóºÍ·Åµ½ÖÊĞÄÊı×éÖĞ
-        centcn[cl[c]]++;//Àà±ğÊıÁ¿¼Ó1
+        	cent[layer1_size * cl[c] + d] += syn0[c * layer1_size + d];//æ±‚å’Œæ”¾åˆ°è´¨å¿ƒæ•°ç»„ä¸­
+        centcn[cl[c]]++;//ç±»åˆ«æ•°é‡åŠ 1
       }
-      for (b = 0; b < clcn; b++)//±éÀúËùÓĞÀà±ğ
+      for (b = 0; b < clcn; b++)//éå†æ‰€æœ‰ç±»åˆ«
       {
         closev = 0;
         for (c = 0; c < layer1_size; c++)
         {
-          cent[layer1_size * b + c] /= centcn[b];//¾ùÖµ£¬¾ÍÊÇÇóĞÂµÄÖÊĞÄ
+          cent[layer1_size * b + c] /= centcn[b];//å‡å€¼ï¼Œå°±æ˜¯æ±‚æ–°çš„è´¨å¿ƒ
           closev += cent[layer1_size * b + c] * cent[layer1_size * b + c];
         }
         closev = sqrt(closev);
         for (c = 0; c < layer1_size; c++)
-        	cent[layer1_size * b + c] /= closev;//¶ÔÖÊĞÄ½øĞĞ¹éÒ»»¯£¿
+        	cent[layer1_size * b + c] /= closev;//å¯¹è´¨å¿ƒè¿›è¡Œå½’ä¸€åŒ–ï¼Ÿ
       }
-      for (c = 0; c < vocab_size; c++)//¶ÔËùÓĞ´ÊÓïÖØĞÂ·ÖÀà
+      for (c = 0; c < vocab_size; c++)//å¯¹æ‰€æœ‰è¯è¯­é‡æ–°åˆ†ç±»
       {
         closev = -10;
         closeid = 0;
@@ -770,7 +766,7 @@ void TrainModel()
         {
           x = 0;
           for (b = 0; b < layer1_size; b++)
-        	  x += cent[layer1_size * d + b] * syn0[c * layer1_size + b];//ÄÚ»ı
+        	  x += cent[layer1_size * d + b] * syn0[c * layer1_size + b];//å†…ç§¯
           if (x > closev)
           {
             closev = x;
@@ -813,72 +809,72 @@ int main(int argc, char **argv) {
     printf("Options:\n");
     printf("Parameters for training:\n");
 
-    //ÊäÈëÎÄ¼ş£ºÒÑ·Ö´ÊµÄÓïÁÏ
+    //è¾“å…¥æ–‡ä»¶ï¼šå·²åˆ†è¯çš„è¯­æ–™
     printf("\t-train <file>\n");
     printf("\t\tUse text data from <file> to train the model\n");
 
-    //Êä³öÎÄ¼ş£º´ÊÏòÁ¿»òÕß´Ê¾ÛÀà
+    //è¾“å‡ºæ–‡ä»¶ï¼šè¯å‘é‡æˆ–è€…è¯èšç±»
     printf("\t-output <file>\n");
     printf("\t\tUse <file> to save the resulting word vectors / word clusters\n");
 
-    //´ÊÏòÁ¿µÄÎ¬¶È£¬Ä¬ÈÏÖµÊÇ100
+    //è¯å‘é‡çš„ç»´åº¦ï¼Œé»˜è®¤å€¼æ˜¯100
     printf("\t-size <int>\n");
     printf("\t\tSet size of word vectors; default is 100\n");
 
-    //´°¿Ú´óĞ¡£¬Ä¬ÈÏÊÇ5
+    //çª—å£å¤§å°ï¼Œé»˜è®¤æ˜¯5
     printf("\t-window <int>\n");
     printf("\t\tSet max skip length between words; default is 5\n");
 
-    //Éè¶¨´Ê³öÏÖÆµÂÊµÄãĞÖµ£¬¶ÔÓÚ³£³öÏÖµÄ´Ê»á±»Ëæ»úÏÂ²ÉÑù
+    //è®¾å®šè¯å‡ºç°é¢‘ç‡çš„é˜ˆå€¼ï¼Œå¯¹äºå¸¸å‡ºç°çš„è¯ä¼šè¢«éšæœºä¸‹é‡‡æ ·
     printf("\t-sample <float>\n");
     printf("\t\tSet threshold for occurrence of words. Those that appear with higher frequency");
     printf(" in the training data will be randomly down-sampled; default is 0 (off), useful value is 1e-5\n");
 
-    //ÊÇ·ñ²ÉÓÃsoftmaxÌåÏµ
+    //æ˜¯å¦é‡‡ç”¨softmaxä½“ç³»
     printf("\t-hs <int>\n");
     printf("\t\tUse Hierarchical Softmax; default is 1 (0 = not used)\n");
 
-    //¸ºÑù±¾µÄÊıÁ¿£¬Ä¬ÈÏÊÇ0£¬Í¨³£Ê¹ÓÃ5-10¡£0±íÊ¾²»Ê¹ÓÃ¡£
+    //è´Ÿæ ·æœ¬çš„æ•°é‡ï¼Œé»˜è®¤æ˜¯0ï¼Œé€šå¸¸ä½¿ç”¨5-10ã€‚0è¡¨ç¤ºä¸ä½¿ç”¨ã€‚
     printf("\t-negative <int>\n");
     printf("\t\tNumber of negative examples; default is 0, common values are 5 - 10 (0 = not used)\n");
 
-    //¿ªÆôµÄÏß³ÌÊıÁ¿
+    //å¼€å¯çš„çº¿ç¨‹æ•°é‡
     printf("\t-threads <int>\n");
     printf("\t\tUse <int> threads (default 1)\n");
 
-    //×îĞ¡ãĞÖµ¡£¶ÔÓÚ³öÏÖ´ÎÊıÉÙÓÚ¸ÃÖµµÄ´Ê£¬»á±»Å×Æúµô¡£
+    //æœ€å°é˜ˆå€¼ã€‚å¯¹äºå‡ºç°æ¬¡æ•°å°‘äºè¯¥å€¼çš„è¯ï¼Œä¼šè¢«æŠ›å¼ƒæ‰ã€‚
     printf("\t-min-count <int>\n");
     printf("\t\tThis will discard words that appear less than <int> times; default is 5\n");
 
-    //Ñ§Ï°ËÙÂÊ³õÊ¼Öµ£¬Ä¬ÈÏÊÇ0.025
+    //å­¦ä¹ é€Ÿç‡åˆå§‹å€¼ï¼Œé»˜è®¤æ˜¯0.025
     printf("\t-alpha <float>\n");
     printf("\t\tSet the starting learning rate; default is 0.025\n");
 
-    //Êä³ö´ÊÀà±ğ£¬¶ø²»ÊÇ´ÊÏòÁ¿
+    //è¾“å‡ºè¯ç±»åˆ«ï¼Œè€Œä¸æ˜¯è¯å‘é‡
     printf("\t-classes <int>\n");
     printf("\t\tOutput word classes rather than word vectors; default number of classes is 0 (vectors are written)\n");
 
-    //debugÄ£Ê½£¬Ä¬ÈÏÊÇ2£¬±íÊ¾ÔÚÑµÁ·¹ı³ÌÖĞ»áÊä³ö¸ü¶àĞÅÏ¢
+    //debugæ¨¡å¼ï¼Œé»˜è®¤æ˜¯2ï¼Œè¡¨ç¤ºåœ¨è®­ç»ƒè¿‡ç¨‹ä¸­ä¼šè¾“å‡ºæ›´å¤šä¿¡æ¯
     printf("\t-debug <int>\n");
     printf("\t\tSet the debug mode (default = 2 = more info during training)\n");
 
-    //ÊÇ·ñÓÃbinaryÄ£Ê½±£´æÊı¾İ£¬Ä¬ÈÏÊÇ0£¬±íÊ¾·ñ¡£
+    //æ˜¯å¦ç”¨binaryæ¨¡å¼ä¿å­˜æ•°æ®ï¼Œé»˜è®¤æ˜¯0ï¼Œè¡¨ç¤ºå¦ã€‚
     printf("\t-binary <int>\n");
     printf("\t\tSave the resulting vectors in binary moded; default is 0 (off)\n");
 
-    //±£´æ´Ê»ãµ½Õâ¸öÎÄ¼ş
+    //ä¿å­˜è¯æ±‡åˆ°è¿™ä¸ªæ–‡ä»¶
     printf("\t-save-vocab <file>\n");
     printf("\t\tThe vocabulary will be saved to <file>\n");
 
-    //´Ê»ã´Ó¸ÃÎÄ¼ş¶ÁÈ¡£¬¶ø²»ÊÇÓÉÑµÁ·Êı¾İÖØ×é
+    //è¯æ±‡ä»è¯¥æ–‡ä»¶è¯»å–ï¼Œè€Œä¸æ˜¯ç”±è®­ç»ƒæ•°æ®é‡ç»„
     printf("\t-read-vocab <file>\n");
     printf("\t\tThe vocabulary will be read from <file>, not constructed from the training data\n");
 
-    //ÊÇ·ñ²ÉÓÃcontinuous bag of wordsËã·¨¡£Ä¬ÈÏÊÇ0£¬±íÊ¾²ÉÓÃÁíÒ»¸ö½Ğskip-gramµÄËã·¨¡£
+    //æ˜¯å¦é‡‡ç”¨continuous bag of wordsç®—æ³•ã€‚é»˜è®¤æ˜¯0ï¼Œè¡¨ç¤ºé‡‡ç”¨å¦ä¸€ä¸ªå«skip-gramçš„ç®—æ³•ã€‚
     printf("\t-cbow <int>\n");
     printf("\t\tUse the continuous bag of words model; default is 0 (skip-gram model)\n");
 
-    //¹¤¾ßÊ¹ÓÃÑùÀı
+    //å·¥å…·ä½¿ç”¨æ ·ä¾‹
     printf("\nExamples:\n");
     printf("./word2vec -train data.txt -output vec.txt -debug 2 -size 200 -window 5 -sample 1e-4 -negative 5 -hs 0 -binary 0 -cbow 1\n\n");
     return 0;
@@ -907,10 +903,10 @@ int main(int argc, char **argv) {
   expTable = (real *)malloc((EXP_TABLE_SIZE + 1) * sizeof(real));
   for (i = 0; i < EXP_TABLE_SIZE; i++)
   {
-	//expTable[i] = exp((i -500)/ 500 * 6) ¼´ e^-6 ~ e^6
-    expTable[i] = exp((i / (real)EXP_TABLE_SIZE * 2 - 1) * MAX_EXP); // Precompute the exp() table//¼ÆËãexp
-    //expTable[i] = 1/(1+e^6) ~ 1/(1+e^-6)¼´ 0.01 ~ 1 µÄÑù×Ó
-    expTable[i] = expTable[i] / (expTable[i] + 1);                   // Precompute f(x) = x / (x + 1)//¼ÆËãsigmoid
+	//expTable[i] = exp((i -500)/ 500 * 6) å³ e^-6 ~ e^6
+    expTable[i] = exp((i / (real)EXP_TABLE_SIZE * 2 - 1) * MAX_EXP); // Precompute the exp() table//è®¡ç®—exp
+    //expTable[i] = 1/(1+e^6) ~ 1/(1+e^-6)å³ 0.01 ~ 1 çš„æ ·å­
+    expTable[i] = expTable[i] / (expTable[i] + 1);                   // Precompute f(x) = x / (x + 1)//è®¡ç®—sigmoid
   }
   TrainModel();
   return 0;
